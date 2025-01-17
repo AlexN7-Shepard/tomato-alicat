@@ -3,6 +3,8 @@ import serial
 import time
 import serial.tools.list_ports
 import asyncio
+import alicat
+from alicat import FlowController
 
 class AlicatMFC:
     def __init__(self, port: str, baudrate: int = 19200, timeout: float = 1.0, rtscts: bool = False, dsrdtr: bool = False, write_timeout: float = None, inter_byte_timeout: float = None, async_func=None):
@@ -92,7 +94,6 @@ class AlicatMFC:
             asyncio.run(async_operations())
 
         return run_sync
-    return wrapper_alicat
 
 
 
