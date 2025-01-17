@@ -1,9 +1,11 @@
+#code to push. not tested.
 import serial
 import time
 import serial.tools.list_ports
+import asyncio
 
 class AlicatMFC:
-    def __init__(self, port: str, baudrate: int = 19200, timeout: float = 1.0, rtscts: bool = False, dsrdtr: bool = False, write_timeout: float = None, inter_byte_timeout: float = None):
+    def __init__(self, port: str, baudrate: int = 19200, timeout: float = 1.0, rtscts: bool = False, dsrdtr: bool = False, write_timeout: float = None, inter_byte_timeout: float = None, async_func=None):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
@@ -12,6 +14,19 @@ class AlicatMFC:
         self.write_timeout = write_timeout
         self.inter_byte_timeout = inter_byte_timeout
         self.mfc = None
+
+
+    @staticmethod
+    def list_available_ports():
+        """List all available serial ports."""
+        ports = list(serial.tools.list_ports.comports())
+        if not ports:
+            print("No available serial ports detected.")
+            return []
+        print("Available Ports:")
+        for i, port in enumerate(ports):
+            print(f"{i + 1}: {port.device}")
+        return [port.device for port in ports]
 
     def connect(self):
         """Initialize the serial connection to the MFC."""
@@ -51,24 +66,39 @@ class AlicatMFC:
             self.mfc.write(command)
             print(f"Flow rate set to {flow_rate}.")
 
-    def run_experiment(self, duration: float):
-        """Run the experiment for a specified duration."""
-        self.open_valve()
-        print(f"Experiment running for {duration} seconds...")
-        time.sleep(duration)
-        self.close_valve()
-        print("Experiment completed.")
+    def wrapper_alicat(self, *args, **kwargs):
+        async def async_operations():
+            async with FlowController('COM3', 'A') as flow_controller:
+                try:
+                    status = await flow_controller.get()
+                    print(f"Device Status: {status}")
 
-    @staticmethod
-    def list_available_ports():
-        """List all available serial ports."""
-        ports = list(serial.tools.list_ports.comports())
-        if not ports:
-            print("No available serial ports detected.")
-            return []
-        print("Available Ports:")
-        for i, port in enumerate(ports):
-            print(f"{i + 1}: {port.device}")
-        return [port.device for port in ports]
+                    flow_rate = float(input("Enter flow rate (L/min): "))
+                    await flow_controller.set_flow_rate(flow_rate)
+                    print(f"Flow rate set to {flow_rate} L/min.")
+
+                    pressure = float(input("Enter pressure (bar): "))
+                    await flow_controller.set_pressure(pressure)
+                    print(f"Pressure set to {pressure} bar.")
+
+                    gas_type = input("Enter gas type (N2/O2/CO2/Ar): ")
+                    await flow_controller.set_gas(gas_type)
+                    print(f"Gas set to {gas_type}.")
+
+                except Exception as e:
+                    print(f"An error occurred: {e}")
+
+        def run_sync():
+            asyncio.run(async_operations())
+
+        return run_sync
+    return wrapper_alicat
+
+
+
+
+
+
+
 
 
