@@ -7,7 +7,7 @@ import alicat
 from alicat import FlowController
 
 class AlicatMFC:
-    def __init__(self, port: str, baudrate: int = 19200, timeout: float = 1.0, rtscts: bool = False, dsrdtr: bool = False, write_timeout: float = None, inter_byte_timeout: float = None, async_func=None):
+    def __init__(self, kwargs** ,port: str, baudrate: int = 19200, timeout: float = 1.0, rtscts: bool = False, dsrdtr: bool = False, write_timeout: float = None, inter_byte_timeout: float = None, async_func=None):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
@@ -56,6 +56,7 @@ class AlicatMFC:
             print("Valve opened.")
 
     def close_valve(self):
+        #which one is the more efficient the flow_controller (alicat or serial )
         """Send command to close the valve."""
         if self.mfc and self.mfc.is_open:
             self.mfc.write(b'VALVE CLOSE\n')
@@ -70,6 +71,7 @@ class AlicatMFC:
 
     def wrapper_alicat(self, *args, **kwargs):
         async def async_operations():
+            #as before we will have to let the user choose which one he wants
             async with FlowController('COM3', 'A') as flow_controller:
                 try:
                     status = await flow_controller.get()
@@ -87,6 +89,52 @@ class AlicatMFC:
                     await flow_controller.set_gas(gas_type)
                     print(f"Gas set to {gas_type}.")
 
+                    try:
+                        print("Please, set the number of the mix : mix_no ")
+                        mix_no_user = int(input("mix_no"))
+                    except ValueError:
+                        print("Error: mix_no must be an integer.")
+                        return
+
+                    print("Please, set the name of your mix : mix_name_user")
+                    mix_name_user = str(input("please set the name of your mix"))
+
+                    try:
+                        print("Please, choose the number of your gases for your mix")
+                        mix_nb_gaz = int(input("gases_no"))
+                    except ValueError:
+                        print("Error: gases_no must be an integer.")
+                        return
+
+                    gases = {}
+                    for i in range(mix_nb_gaz):
+                        gas_type = input(f"Enter gas type for gas {i + 1}: ")
+                        try:
+                            gas_value = int(input(f"Enter value for {gas_type} (0-256): "))
+                            if not (0 <= gas_value <= 256):
+                                raise ValueError
+                        except ValueError:
+                            print("Error: gas value must be an integer between 0 and 256.")
+                            return
+                        gases[gas_type] = gas_value
+
+                    await flow_controller.create_mix(mix_no=mix_no_user, name=mix_name_user, gases=gases)
+
+
+
+
+
+
+
+
+
+
+
+
+                    #not complete : find a way to deal with the gaz,
+                    #gaz is not static, it is meant to evolve according to the number defined by the user... but is it possible with alicat (without crashing)  ?
+                    #this we will have to find out... .
+
                 except Exception as e:
                     print(f"An error occurred: {e}")
 
@@ -94,6 +142,56 @@ class AlicatMFC:
             asyncio.run(async_operations())
 
         return run_sync
+
+    #unit map, #sensor map, #attributes
+    #design questions :
+    ## locking and unlocking the front display during experiments
+    #for the tare
+#complete the attributes function, get_attr, capabilities
+
+#MC series controller for gas,
+#Multi-variable control: Can control mass flow, volumetric flow,
+# or absolute pressure with a single device
+
+#find ways to adapt what we had with bronkhorst to alicat .
+
+def capabilities(self, **kwargs) -> set:
+            """Returns a set of capabilities supported by this device."""
+            if self.device_type == "pressure":
+                caps = {"constant_pressure"}
+            else:
+                caps = {"constant_flow"}
+            return caps
+
+def attrs(self, **kwargs) -> dict[str, Attr] : #taken from tomato, to adapt.
+    attrs_dict = {
+        "temperature" : Attr(type=float, units ="Celsius"),
+        "control_mode" : Attr(type=str, status=True, rw= True),
+        "setpoint" : Attr(type=float,) #not complete (yet)
+
+
+
+        #complete pressure controller or flow controller with alicat properties
+
+    }
+
+def get_attr(self, attr: str, **kwargs: dict) -> Any :
+
+    #this is from bronkhorst adapt it to alicat
+    if attr in self.attrs():
+                dde_nr = dde_from_attr(attr)
+                ret = self.instrument.readParameter(dde_nr=dde_nr)
+                if attr == "control_mode":
+                    ret = CONTROL_MAP[ret]
+                return ret
+            else:
+                raise ValueError(f"Unknown attr: {attr!r}")
+
+
+
+
+
+
 
 
 
